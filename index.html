@@ -194,6 +194,46 @@
     font-size: 12px; color: #7fb3d8;
   }
 
+  /* History */
+  .history-section { margin-top: 8px; }
+  .history-toggle {
+    font-size: 13px; color: #7fb3d8; background: none; border: none;
+    cursor: pointer; font-family: inherit; font-weight: 500;
+    display: flex; align-items: center; gap: 6px; padding: 0;
+  }
+  .history-toggle:hover { color: #85c1e9; }
+  .history-toggle .arrow { font-size: 10px; transition: transform 0.2s; }
+  .history-toggle .arrow.open { transform: rotate(90deg); }
+  .history-list {
+    margin-top: 12px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .history-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-radius: 8px;
+    background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08);
+    cursor: pointer; transition: all 0.2s; gap: 8px;
+  }
+  .history-item:hover { border-color: rgba(46,134,193,0.4); background: rgba(46,134,193,0.08); }
+  .history-item-info { flex: 1; min-width: 0; }
+  .history-item-title {
+    font-size: 13px; font-weight: 500; color: #c5dbe8;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .history-item-meta { font-size: 11px; color: #5a8aaa; margin-top: 2px; }
+  .history-item-del {
+    background: none; border: none; color: #e74c3c; cursor: pointer;
+    font-size: 16px; padding: 4px 8px; opacity: 0.5; transition: opacity 0.2s;
+    flex-shrink: 0;
+  }
+  .history-item-del:hover { opacity: 1; }
+  .history-empty { font-size: 12px; color: #5a8aaa; padding: 8px 0; }
+  .history-clear {
+    font-size: 11px; color: #e74c3c; background: none; border: none;
+    cursor: pointer; font-family: inherit; margin-top: 8px; padding: 0;
+    opacity: 0.7;
+  }
+  .history-clear:hover { opacity: 1; }
+
   .mb-20 { margin-bottom: 20px; }
   .mb-24 { margin-bottom: 24px; }
   .hidden { display: none; }
@@ -254,6 +294,15 @@
         無料枠には1日あたりのリクエスト上限（20〜50回程度）があります。ルーブリック生成用途であれば十分ですが、上限に達した場合は翌日にお試しください。
       </div>
     </div>
+  </section>
+
+  <!-- History -->
+  <section id="historySection" class="card fade-in-d1 history-section">
+    <button class="history-toggle" onclick="toggleHistory()">
+      <span class="arrow" id="historyArrow">▶</span>
+      <span id="historyToggleLabel">生成履歴</span>
+    </button>
+    <div id="historyList" class="history-list hidden"></div>
   </section>
 
   <!-- Input Form -->
@@ -320,6 +369,7 @@
         <button class="btn-new" onclick="backToForm()">新規作成</button>
         <button class="btn-regen" onclick="regenerate()">再生成</button>
         <button class="btn-csv" onclick="exportCSV()">CSV出力</button>
+        <button class="btn-csv" onclick="exportExcel()" style="background:linear-gradient(135deg,#1a7a3a,#27ae60)">Excel出力</button>
       </div>
     </div>
     <div class="table-wrap">
@@ -330,6 +380,7 @@
   </section>
 </main>
 
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script>
 const SYSTEM_PROMPT = `# Role
 あなたは教育工学と学習評価の専門家です。教員が入力した条件に基づき、客観的で信頼性の高い「ルーブリック（評価指標）」を構造化データとして生成します。
@@ -383,6 +434,9 @@ let selectedLevels = 4;
 let rubricData = null;
 let deleteConfirm = false;
 let lastGenerateParams = null;
+let historyOpen = false;
+const HISTORY_KEY = 'rubric_history';
+const MAX_HISTORY = 20;
 
 // DOM refs
 const apiKeyInput = document.getElementById('apiKeyInput');
@@ -399,6 +453,9 @@ const formSection = document.getElementById('formSection');
 const resultSection = document.getElementById('resultSection');
 const resultTitle = document.getElementById('resultTitle');
 const rubricTable = document.getElementById('rubricTable');
+const historyList = document.getElementById('historyList');
+const historyArrow = document.getElementById('historyArrow');
+const historyToggleLabel = document.getElementById('historyToggleLabel');
 
 // Init
 (function init() {
@@ -425,6 +482,7 @@ const rubricTable = document.getElementById('rubricTable');
   });
 
   renderLevels();
+  renderHistory();
 })();
 
 function renderLevels() {
@@ -526,6 +584,7 @@ JSONのみを出力してください。`;
     if (!parsed.title || !parsed.levels || !parsed.rows) throw new Error('不正なJSON構造です');
 
     rubricData = parsed;
+    saveToHistory(parsed);
     renderResult();
   } catch (e) {
     showError('生成エラー: ' + e.message);
@@ -625,6 +684,7 @@ async function regenerate() {
     if (!parsed.title || !parsed.levels || !parsed.rows) throw new Error('不正なJSON構造です');
 
     rubricData = parsed;
+    saveToHistory(parsed);
     renderResult();
   } catch (e) {
     alert('再生成エラー: ' + e.message);
@@ -672,6 +732,115 @@ function exportCSV() {
   a.download = (rubricData.title || 'rubric') + '.csv';
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function exportExcel() {
+  if (!rubricData) return;
+  const sorted = [...rubricData.levels].sort((a, b) => b.score - a.score);
+  const wb = XLSX.utils.book_new();
+
+  // Build data rows
+  const header = ['評価観点', ...sorted.map(l => `${l.label}（${l.score}）`)];
+  const dataRows = rubricData.rows.map(row => {
+    return [row.criterion, ...sorted.map(level => {
+      const d = row.descriptions.find(dd => dd.score === level.score);
+      return d?.text || '';
+    })];
+  });
+
+  // Title row
+  const wsData = [[rubricData.title], header, ...dataRows];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Column widths
+  const colWidths = [{ wch: 18 }];
+  sorted.forEach(() => colWidths.push({ wch: 32 }));
+  ws['!cols'] = colWidths;
+
+  // Merge title row across all columns
+  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: header.length - 1 } }];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'ルーブリック');
+  XLSX.writeFile(wb, (rubricData.title || 'rubric') + '.xlsx');
+}
+
+// --- History ---
+function getHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+  } catch { return []; }
+}
+
+function saveToHistory(data) {
+  const history = getHistory();
+  const entry = {
+    id: Date.now(),
+    title: data.title,
+    date: new Date().toLocaleString('ja-JP'),
+    levels: data.levels.length,
+    rows: data.rows.length,
+    data: data,
+  };
+  history.unshift(entry);
+  if (history.length > MAX_HISTORY) history.length = MAX_HISTORY;
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch {}
+  renderHistory();
+}
+
+function renderHistory() {
+  const history = getHistory();
+  const count = history.length;
+  historyToggleLabel.textContent = `生成履歴${count > 0 ? '（' + count + '件）' : ''}`;
+
+  if (!historyOpen) {
+    historyList.classList.add('hidden');
+    return;
+  }
+  historyList.classList.remove('hidden');
+
+  if (count === 0) {
+    historyList.innerHTML = '<p class="history-empty">履歴はまだありません</p>';
+    return;
+  }
+
+  let html = '';
+  history.forEach(entry => {
+    html += `<div class="history-item" onclick="loadHistory(${entry.id})">
+      <div class="history-item-info">
+        <div class="history-item-title">${esc(entry.title)}</div>
+        <div class="history-item-meta">${esc(entry.date)} ・ ${entry.rows}観点 × ${entry.levels}段階</div>
+      </div>
+      <button class="history-item-del" onclick="event.stopPropagation();deleteHistory(${entry.id})" title="削除">×</button>
+    </div>`;
+  });
+  html += '<button class="history-clear" onclick="clearHistory()">履歴をすべて削除</button>';
+  historyList.innerHTML = html;
+}
+
+function toggleHistory() {
+  historyOpen = !historyOpen;
+  historyArrow.classList.toggle('open', historyOpen);
+  renderHistory();
+}
+
+function loadHistory(id) {
+  const history = getHistory();
+  const entry = history.find(h => h.id === id);
+  if (!entry) return;
+  rubricData = entry.data;
+  renderResult();
+}
+
+function deleteHistory(id) {
+  const history = getHistory().filter(h => h.id !== id);
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch {}
+  renderHistory();
+}
+
+function clearHistory() {
+  if (!confirm('生成履歴をすべて削除しますか？')) return;
+  try { localStorage.removeItem(HISTORY_KEY); } catch {}
+  renderHistory();
 }
 </script>
 </body>
