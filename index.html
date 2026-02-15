@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ルーブリック ジェネレーター</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0c1929 0%, #1a3a5c 50%, #0c1929 100%);
+    font-family: 'Noto Sans JP', 'Hiragino Sans', sans-serif;
+    color: #e8e8e8;
+  }
+  input, textarea, select, button { font-family: inherit; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .fade-in { animation: fadeIn 0.5s ease-out both; }
+  .fade-in-d1 { animation: fadeIn 0.5s ease-out 0.1s both; }
+  .fade-in-d2 { animation: fadeIn 0.5s ease-out 0.2s both; }
+
+  header {
+    padding: 32px 24px 24px;
+    text-align: center;
+    position: relative;
+  }
+  .header-glow {
+    position: absolute; top: 0; left: 0; right: 0; height: 200px;
+    background: radial-gradient(ellipse at 50% 0%, rgba(46,134,193,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  h1 {
+    font-size: 28px; font-weight: 700; letter-spacing: 0.05em;
+    background: linear-gradient(135deg, #85c1e9, #fff, #85c1e9);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: 8px;
+  }
+  .subtitle { font-size: 13px; color: #7fb3d8; letter-spacing: 0.15em; font-weight: 300; }
+
+  main { max-width: 900px; margin: 0 auto; padding: 0 20px 40px; }
+
+  .card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px; padding: 20px; margin-bottom: 20px;
+  }
+  .card-form { padding: 24px; }
+
+  .label {
+    font-size: 12px; color: #7fb3d8; font-weight: 500;
+    letter-spacing: 0.1em; display: block; margin-bottom: 8px;
+  }
+  .input-row { display: flex; gap: 8px; }
+  .text-input {
+    flex: 1; padding: 10px 14px; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.3);
+    color: #e8e8e8; font-size: 14px; outline: none;
+  }
+  .text-input-lg { font-size: 15px; padding: 12px 14px; width: 100%; }
+  textarea.text-input { resize: vertical; line-height: 1.7; width: 100%; }
+  .hint { font-size: 11px; color: #5a8aaa; margin-top: 6px; }
+
+  .btn-secondary {
+    padding: 10px 16px; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06);
+    color: #7fb3d8; cursor: pointer; font-size: 13px; white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .btn-delete {
+    padding: 10px 16px; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06);
+    color: #e74c3c; cursor: pointer; font-size: 13px; white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .btn-delete.confirm {
+    border-color: rgba(231,76,60,0.5); background: rgba(231,76,60,0.15);
+  }
+
+  .levels-row { display: flex; gap: 8px; }
+  .level-btn {
+    flex: 1; padding: 10px 0; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.2);
+    color: #7a7a7a; cursor: pointer; font-size: 16px; font-weight: 600;
+    transition: all 0.2s;
+  }
+  .level-btn.active {
+    border: 2px solid #2e86c1; background: rgba(46,134,193,0.2); color: #85c1e9;
+  }
+
+  .error-box {
+    padding: 10px 14px; border-radius: 8px;
+    background: rgba(192,57,43,0.15); border: 1px solid rgba(192,57,43,0.3);
+    color: #e74c3c; font-size: 13px; margin-bottom: 16px;
+  }
+  .btn-generate {
+    width: 100%; padding: 14px; border-radius: 10px; border: none;
+    background: linear-gradient(135deg, #1a5276, #2e86c1);
+    color: #fff; font-size: 16px; font-weight: 600; cursor: pointer;
+    letter-spacing: 0.05em; transition: all 0.3s;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  .btn-generate:disabled {
+    background: rgba(46,134,193,0.3); cursor: not-allowed;
+  }
+  .spinner {
+    width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff; border-radius: 50%;
+    animation: spin 0.8s linear infinite; display: inline-block;
+  }
+
+  .result-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 16px; flex-wrap: wrap; gap: 12px;
+  }
+  .result-title { font-size: 20px; font-weight: 600; color: #fff; }
+  .result-actions { display: flex; gap: 8px; }
+  .btn-new {
+    padding: 8px 18px; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.06);
+    color: #7fb3d8; cursor: pointer; font-size: 13px; font-weight: 500;
+  }
+  .btn-csv {
+    padding: 8px 18px; border-radius: 8px; border: none;
+    background: linear-gradient(135deg, #1a5276, #2e86c1);
+    color: #fff; cursor: pointer; font-size: 13px; font-weight: 500;
+  }
+
+  .table-wrap {
+    overflow-x: auto; border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.25);
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.6; }
+  th.col-criterion {
+    padding: 14px 16px; text-align: left; background: rgba(0,0,0,0.4);
+    color: #7fb3d8; font-weight: 600; font-size: 12px; letter-spacing: 0.1em;
+    border-bottom: 2px solid rgba(46,134,193,0.3); min-width: 120px;
+    position: sticky; left: 0; z-index: 1;
+  }
+  th.col-level {
+    padding: 14px 16px; text-align: center; font-weight: 600;
+    font-size: 12px; letter-spacing: 0.05em;
+    border-bottom: 2px solid rgba(46,134,193,0.3); min-width: 160px;
+  }
+  .level-score { font-size: 18px; font-weight: 700; margin-bottom: 2px; }
+  td.row-criterion {
+    padding: 14px 16px; font-weight: 600; color: #c5dbe8;
+    background: rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.06);
+    position: sticky; left: 0; z-index: 1; font-size: 13px;
+  }
+  td.row-desc {
+    padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.06);
+    border-left: 1px solid rgba(255,255,255,0.04);
+    color: #d0d0d0; vertical-align: top; font-size: 12.5px;
+  }
+  .ai-note { font-size: 11px; color: #5a8aaa; margin-top: 12px; text-align: center; }
+
+  .mb-20 { margin-bottom: 20px; }
+  .mb-24 { margin-bottom: 24px; }
+  .hidden { display: none; }
+
+  .form-group { margin-bottom: 20px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-glow"></div>
+  <h1 class="fade-in">ルーブリック ジェネレーター</h1>
+  <p class="subtitle fade-in-d1">AI が評価指標を自動生成</p>
+</header>
+
+<main>
+  <!-- API Key -->
+  <section class="card fade-in-d1">
+    <label class="label">GEMINI API KEY</label>
+    <div class="input-row">
+      <input id="apiKeyInput" type="password" class="text-input" placeholder="AIza...">
+      <button id="toggleKeyBtn" class="btn-secondary" onclick="toggleApiKey()">表示</button>
+      <button id="deleteKeyBtn" class="btn-delete hidden" onclick="handleDeleteKey()">キー削除</button>
+    </div>
+    <p class="hint">※ キーはブラウザにのみ保存されます。共有端末では使用後に「キー削除」してください。</p>
+  </section>
+
+  <!-- Input Form -->
+  <section id="formSection" class="card card-form fade-in-d2">
+    <div class="form-group">
+      <label class="label">評価対象 *</label>
+      <input id="subjectInput" type="text" class="text-input text-input-lg" placeholder="例：プレゼンテーション、レポート、栽培計画書">
+    </div>
+    <div class="form-group">
+      <label class="label">評価観点（空欄の場合は AI が自動設定）</label>
+      <textarea id="criteriaInput" class="text-input" rows="4" placeholder="例：&#10;内容の正確性&#10;論理的構成&#10;表現力&#10;独創性"></textarea>
+      <p class="hint" style="margin-top:4px">改行またはカンマ区切りで複数入力できます</p>
+    </div>
+    <div class="mb-24">
+      <label class="label">評価段階数</label>
+      <div class="levels-row" id="levelsRow"></div>
+    </div>
+    <div id="errorBox" class="error-box hidden"></div>
+    <button id="generateBtn" class="btn-generate" onclick="generate()">ルーブリックを生成</button>
+  </section>
+
+  <!-- Result -->
+  <section id="resultSection" class="hidden fade-in">
+    <div class="result-header">
+      <h2 id="resultTitle" class="result-title"></h2>
+      <div class="result-actions">
+        <button class="btn-new" onclick="backToForm()">新規作成</button>
+        <button class="btn-csv" onclick="exportCSV()">CSV出力</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="rubricTable"></table>
+    </div>
+    <p class="ai-note">※ AIが生成した内容です。必要に応じて修正してご利用ください。</p>
+  </section>
+</main>
+
+<script>
+const SYSTEM_PROMPT = `# Role
+あなたは教育工学と学習評価の専門家です。教員が入力した条件に基づき、客観的で信頼性の高い「ルーブリック（評価指標）」を構造化データとして生成します。
+
+# Task
+提供された「評価対象」「評価観点」「評価段階数」を元に、各セル（観点×段階）に具体的な行動指標を記述したルーブリックを生成してください。
+
+# Output Requirements
+1. 評価段階は、数値が大きいほど高評価（例：4が最高、1が最低）とします。
+2. 各段階の記述（description）は、抽象的な言葉（例：「よくできている」）を避け、具体的な行動や成果物の状態（例：「〜を3つ以上指摘し、根拠を述べている」）を記述してください。
+3. 出力は必ず以下のJSON形式のみで返してください。余計なテキストやマークダウンは不要です。
+
+{
+  "title": "string",
+  "levels": [
+    { "score": "integer", "label": "string (例: 卓越、達成、努力を要する)" }
+  ],
+  "rows": [
+    {
+      "criterion": "string (評価観点)",
+      "descriptions": [
+        { "score": "integer", "text": "string (その段階の具体的な評価基準文)" }
+      ]
+    }
+  ]
+}`;
+
+const LEVEL_COLORS = {
+  4: { bg: "#1a5276", text: "#fff" },
+  3: { bg: "#2e86c1", text: "#fff" },
+  2: { bg: "#85c1e9", text: "#1a1a1a" },
+  1: { bg: "#d4e6f1", text: "#1a1a1a" },
+};
+const DEFAULT_COLORS = [
+  { bg: "#1a5276", text: "#fff" },
+  { bg: "#2471a3", text: "#fff" },
+  { bg: "#5dade2", text: "#fff" },
+  { bg: "#85c1e9", text: "#1a1a1a" },
+  { bg: "#aed6f1", text: "#1a1a1a" },
+  { bg: "#d4e6f1", text: "#1a1a1a" },
+];
+
+function getColor(score, total) {
+  if (LEVEL_COLORS[score] && total <= 4) return LEVEL_COLORS[score];
+  const idx = total - score;
+  return DEFAULT_COLORS[Math.min(idx, DEFAULT_COLORS.length - 1)];
+}
+
+// State
+let selectedLevels = 4;
+let rubricData = null;
+let deleteConfirm = false;
+
+// DOM refs
+const apiKeyInput = document.getElementById('apiKeyInput');
+const toggleKeyBtn = document.getElementById('toggleKeyBtn');
+const deleteKeyBtn = document.getElementById('deleteKeyBtn');
+const subjectInput = document.getElementById('subjectInput');
+const criteriaInput = document.getElementById('criteriaInput');
+const levelsRow = document.getElementById('levelsRow');
+const errorBox = document.getElementById('errorBox');
+const generateBtn = document.getElementById('generateBtn');
+const formSection = document.getElementById('formSection');
+const resultSection = document.getElementById('resultSection');
+const resultTitle = document.getElementById('resultTitle');
+const rubricTable = document.getElementById('rubricTable');
+
+// Init
+(function init() {
+  try {
+    const saved = localStorage.getItem('gemini_api_key');
+    if (saved) {
+      apiKeyInput.value = saved;
+      deleteKeyBtn.classList.remove('hidden');
+    }
+  } catch {}
+
+  apiKeyInput.addEventListener('input', function() {
+    const key = this.value;
+    deleteConfirm = false;
+    deleteKeyBtn.textContent = 'キー削除';
+    deleteKeyBtn.classList.remove('confirm');
+    if (key) {
+      deleteKeyBtn.classList.remove('hidden');
+      try { localStorage.setItem('gemini_api_key', key); } catch {}
+    } else {
+      deleteKeyBtn.classList.add('hidden');
+      try { localStorage.removeItem('gemini_api_key'); } catch {}
+    }
+  });
+
+  renderLevels();
+})();
+
+function renderLevels() {
+  levelsRow.innerHTML = '';
+  [3, 4, 5, 6].forEach(n => {
+    const btn = document.createElement('button');
+    btn.className = 'level-btn' + (n === selectedLevels ? ' active' : '');
+    btn.textContent = n + '段階';
+    btn.onclick = () => { selectedLevels = n; renderLevels(); };
+    levelsRow.appendChild(btn);
+  });
+}
+
+function toggleApiKey() {
+  const isPassword = apiKeyInput.type === 'password';
+  apiKeyInput.type = isPassword ? 'text' : 'password';
+  toggleKeyBtn.textContent = isPassword ? '隠す' : '表示';
+}
+
+function handleDeleteKey() {
+  if (!deleteConfirm) {
+    deleteConfirm = true;
+    deleteKeyBtn.textContent = '本当に削除';
+    deleteKeyBtn.classList.add('confirm');
+    return;
+  }
+  apiKeyInput.value = '';
+  deleteConfirm = false;
+  deleteKeyBtn.textContent = 'キー削除';
+  deleteKeyBtn.classList.remove('confirm');
+  deleteKeyBtn.classList.add('hidden');
+  try { localStorage.removeItem('gemini_api_key'); } catch {}
+}
+
+function showError(msg) {
+  errorBox.textContent = msg;
+  errorBox.classList.remove('hidden');
+}
+function hideError() {
+  errorBox.classList.add('hidden');
+}
+
+async function generate() {
+  hideError();
+  const apiKey = apiKeyInput.value.trim();
+  const subject = subjectInput.value.trim();
+  if (!apiKey) { showError('APIキーを入力してください'); return; }
+  if (!subject) { showError('評価対象を入力してください'); return; }
+
+  const criteriaRaw = criteriaInput.value.trim();
+  const criteriaList = criteriaRaw
+    ? criteriaRaw.split(/[,、\n]+/).map(c => c.trim()).filter(Boolean)
+    : [];
+
+  const userMessage = `以下の条件でルーブリックをJSON形式で生成してください。
+
+評価対象: ${subject}
+評価観点: ${criteriaList.length > 0 ? criteriaList.join('、') : '適切な観点を3〜5つ自動で設定してください'}
+評価段階数: ${selectedLevels}段階
+
+JSONのみを出力してください。`;
+
+  generateBtn.disabled = true;
+  generateBtn.innerHTML = '<span class="spinner"></span>生成中...';
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+          contents: [{ parts: [{ text: userMessage }] }],
+          generationConfig: { responseMimeType: 'application/json', temperature: 0.3 },
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData?.error?.message || `API Error: ${res.status}`);
+    }
+
+    const data = await res.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('レスポンスが空です');
+
+    const cleaned = text.replace(/```json\n?|```\n?/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+    if (!parsed.title || !parsed.levels || !parsed.rows) throw new Error('不正なJSON構造です');
+
+    rubricData = parsed;
+    renderResult();
+  } catch (e) {
+    showError('生成エラー: ' + e.message);
+  } finally {
+    generateBtn.disabled = false;
+    generateBtn.innerHTML = 'ルーブリックを生成';
+  }
+}
+
+function renderResult() {
+  formSection.classList.add('hidden');
+  resultSection.classList.remove('hidden');
+  resultTitle.textContent = rubricData.title;
+
+  const sorted = [...rubricData.levels].sort((a, b) => b.score - a.score);
+
+  let html = '<thead><tr>';
+  html += '<th class="col-criterion">評価観点</th>';
+  sorted.forEach(level => {
+    const c = getColor(level.score, sorted.length);
+    html += `<th class="col-level" style="background:${c.bg};color:${c.text}">
+      <div class="level-score">${level.score}</div>${level.label}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  rubricData.rows.forEach((row, ri) => {
+    html += `<tr class="fade-in" style="animation-delay:${ri * 0.08}s">`;
+    html += `<td class="row-criterion">${esc(row.criterion)}</td>`;
+    sorted.forEach(level => {
+      const desc = row.descriptions.find(d => d.score === level.score);
+      const c = getColor(level.score, sorted.length);
+      html += `<td class="row-desc" style="background:${c.bg}12">${esc(desc?.text || '—')}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody>';
+  rubricTable.innerHTML = html;
+}
+
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function backToForm() {
+  resultSection.classList.add('hidden');
+  formSection.classList.remove('hidden');
+  rubricData = null;
+}
+
+function exportCSV() {
+  if (!rubricData) return;
+  const sorted = [...rubricData.levels].sort((a, b) => b.score - a.score);
+  const header = ['評価観点', ...sorted.map(l => `${l.label}(${l.score})`)];
+  const rows = rubricData.rows.map(row => {
+    const descs = sorted.map(level => {
+      const d = row.descriptions.find(dd => dd.score === level.score);
+      return '"' + (d?.text || '').replace(/"/g, '""') + '"';
+    });
+    return ['"' + row.criterion + '"', ...descs];
+  });
+  const bom = '\uFEFF';
+  const csv = bom + [header.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (rubricData.title || 'rubric') + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
