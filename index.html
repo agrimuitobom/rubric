@@ -199,6 +199,28 @@
   .hidden { display: none; }
 
   .form-group { margin-bottom: 20px; }
+
+  /* Select inputs */
+  .select-input {
+    padding: 10px 14px; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.3);
+    color: #e8e8e8; font-size: 14px; outline: none;
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237fb3d8' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center;
+    padding-right: 32px; cursor: pointer; width: 100%;
+  }
+  .select-row { display: flex; gap: 12px; }
+  .select-row > div { flex: 1; }
+
+  /* Regenerate button */
+  .btn-regen {
+    padding: 8px 18px; border-radius: 8px;
+    border: 1px solid rgba(46,134,193,0.4); background: rgba(46,134,193,0.1);
+    color: #85c1e9; cursor: pointer; font-size: 13px; font-weight: 500;
+    transition: all 0.2s;
+  }
+  .btn-regen:hover { background: rgba(46,134,193,0.2); }
 </style>
 </head>
 <body>
@@ -237,6 +259,43 @@
   <!-- Input Form -->
   <section id="formSection" class="card card-form fade-in-d2">
     <div class="form-group">
+      <div class="select-row">
+        <div>
+          <label class="label">校種</label>
+          <select id="schoolSelect" class="select-input">
+            <option value="">指定しない</option>
+            <option value="小学校">小学校</option>
+            <option value="中学校">中学校</option>
+            <option value="高等学校">高等学校</option>
+            <option value="大学">大学</option>
+            <option value="特別支援学校">特別支援学校</option>
+          </select>
+        </div>
+        <div>
+          <label class="label">教科</label>
+          <select id="subjectSelect" class="select-input">
+            <option value="">指定しない</option>
+            <option value="国語">国語</option>
+            <option value="数学・算数">数学・算数</option>
+            <option value="英語・外国語">英語・外国語</option>
+            <option value="理科">理科</option>
+            <option value="社会・地歴公民">社会・地歴公民</option>
+            <option value="音楽">音楽</option>
+            <option value="美術・図工">美術・図工</option>
+            <option value="保健体育">保健体育</option>
+            <option value="技術・家庭">技術・家庭</option>
+            <option value="情報">情報</option>
+            <option value="農業">農業</option>
+            <option value="商業">商業</option>
+            <option value="工業">工業</option>
+            <option value="総合的な学習の時間">総合的な学習の時間</option>
+            <option value="道徳">道徳</option>
+            <option value="特別活動">特別活動</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
       <label class="label">評価対象 *</label>
       <input id="subjectInput" type="text" class="text-input text-input-lg" placeholder="例：プレゼンテーション、レポート、栽培計画書">
     </div>
@@ -259,6 +318,7 @@
       <h2 id="resultTitle" class="result-title"></h2>
       <div class="result-actions">
         <button class="btn-new" onclick="backToForm()">新規作成</button>
+        <button class="btn-regen" onclick="regenerate()">再生成</button>
         <button class="btn-csv" onclick="exportCSV()">CSV出力</button>
       </div>
     </div>
@@ -322,11 +382,14 @@ function getColor(score, total) {
 let selectedLevels = 4;
 let rubricData = null;
 let deleteConfirm = false;
+let lastGenerateParams = null;
 
 // DOM refs
 const apiKeyInput = document.getElementById('apiKeyInput');
 const toggleKeyBtn = document.getElementById('toggleKeyBtn');
 const deleteKeyBtn = document.getElementById('deleteKeyBtn');
+const schoolSelect = document.getElementById('schoolSelect');
+const subjectSelect = document.getElementById('subjectSelect');
 const subjectInput = document.getElementById('subjectInput');
 const criteriaInput = document.getElementById('criteriaInput');
 const levelsRow = document.getElementById('levelsRow');
@@ -411,18 +474,26 @@ async function generate() {
   if (!apiKey) { showError('APIキーを入力してください'); return; }
   if (!subject) { showError('評価対象を入力してください'); return; }
 
+  const school = schoolSelect.value;
+  const subjectArea = subjectSelect.value;
   const criteriaRaw = criteriaInput.value.trim();
   const criteriaList = criteriaRaw
     ? criteriaRaw.split(/[,、\n]+/).map(c => c.trim()).filter(Boolean)
     : [];
 
+  const contextLines = [];
+  if (school) contextLines.push(`校種: ${school}`);
+  if (subjectArea) contextLines.push(`教科: ${subjectArea}`);
+
   const userMessage = `以下の条件でルーブリックをJSON形式で生成してください。
 
-評価対象: ${subject}
+${contextLines.length > 0 ? contextLines.join('\n') + '\n' : ''}評価対象: ${subject}
 評価観点: ${criteriaList.length > 0 ? criteriaList.join('、') : '適切な観点を3〜5つ自動で設定してください'}
 評価段階数: ${selectedLevels}段階
 
 JSONのみを出力してください。`;
+
+  lastGenerateParams = { apiKey, userMessage };
 
   generateBtn.disabled = true;
   generateBtn.innerHTML = '<span class="spinner"></span>生成中...';
@@ -516,6 +587,51 @@ function esc(str) {
   const d = document.createElement('div');
   d.textContent = str;
   return d.innerHTML;
+}
+
+async function regenerate() {
+  if (!lastGenerateParams) return;
+  const { apiKey, userMessage } = lastGenerateParams;
+
+  const regenBtn = document.querySelector('.btn-regen');
+  regenBtn.disabled = true;
+  regenBtn.textContent = '生成中...';
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+          contents: [{ parts: [{ text: userMessage }] }],
+          generationConfig: { responseMimeType: 'application/json', temperature: 0.3 },
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData?.error?.message || `API Error: ${res.status}`);
+    }
+
+    const data = await res.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('レスポンスが空です');
+
+    const cleaned = text.replace(/```json\n?|```\n?/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+    if (!parsed.title || !parsed.levels || !parsed.rows) throw new Error('不正なJSON構造です');
+
+    rubricData = parsed;
+    renderResult();
+  } catch (e) {
+    alert('再生成エラー: ' + e.message);
+  } finally {
+    regenBtn.disabled = false;
+    regenBtn.textContent = '再生成';
+  }
 }
 
 function toggleGuide() {
