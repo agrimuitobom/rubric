@@ -234,6 +234,50 @@
   }
   .history-clear:hover { opacity: 1; }
 
+  /* Print Layout */
+  @media print {
+    *, *::before, *::after { color: #000 !important; background: #fff !important; box-shadow: none !important; text-shadow: none !important; }
+    body { background: #fff !important; padding: 0 !important; }
+    main { max-width: 100% !important; padding: 0 !important; }
+
+    /* Hide everything except result */
+    header, #formSection, #historySection, .result-actions, .edit-hint, .ai-note { display: none !important; }
+    #resultSection { display: block !important; }
+    #resultSection.hidden { display: block !important; }
+
+    .result-header { margin-bottom: 8px; }
+    .result-title { font-size: 18pt !important; color: #000 !important; text-align: center; }
+
+    .table-wrap { overflow: visible !important; border: none !important; background: none !important; }
+    table { width: 100% !important; border-collapse: collapse !important; font-size: 9pt !important; line-height: 1.4 !important; page-break-inside: auto; }
+    tr { page-break-inside: avoid; }
+
+    th.col-criterion, th.col-level {
+      background: #e8e8e8 !important; color: #000 !important;
+      border: 1px solid #333 !important; padding: 6px 8px !important;
+      position: static !important; font-size: 9pt !important;
+    }
+    .level-score { color: #000 !important; font-size: 12pt !important; }
+    td.row-criterion {
+      background: #f4f4f4 !important; color: #000 !important;
+      border: 1px solid #333 !important; padding: 6px 8px !important;
+      position: static !important; font-weight: 600 !important;
+    }
+    td.row-desc {
+      border: 1px solid #333 !important; padding: 6px 8px !important;
+      color: #000 !important; font-size: 8.5pt !important;
+    }
+    td[contenteditable] { outline: none !important; }
+
+    @page { size: A4 landscape; margin: 12mm; }
+  }
+
+  .btn-print {
+    padding: 8px 18px; border-radius: 8px; border: none;
+    background: linear-gradient(135deg, #6c3483, #8e44ad);
+    color: #fff; cursor: pointer; font-size: 13px; font-weight: 500;
+  }
+
   .mb-20 { margin-bottom: 20px; }
   .mb-24 { margin-bottom: 24px; }
   .hidden { display: none; }
@@ -370,12 +414,13 @@
         <button class="btn-regen" onclick="regenerate()">再生成</button>
         <button class="btn-csv" onclick="exportCSV()">CSV出力</button>
         <button class="btn-csv" onclick="exportExcel()" style="background:linear-gradient(135deg,#1a7a3a,#27ae60)">Excel出力</button>
+        <button class="btn-print" onclick="window.print()">印刷</button>
       </div>
     </div>
     <div class="table-wrap">
       <table id="rubricTable"></table>
     </div>
-    <p class="edit-hint">セルをクリックして内容を編集できます。編集内容はCSV出力にも反映されます。</p>
+    <p class="edit-hint">セルをクリックして内容を編集できます。編集内容はCSV・Excel・印刷にも反映されます。</p>
     <p class="ai-note">※ AIが生成した内容です。必要に応じて修正してご利用ください。</p>
   </section>
 </main>
