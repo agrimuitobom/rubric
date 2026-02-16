@@ -278,6 +278,69 @@
     color: #fff; cursor: pointer; font-size: 13px; font-weight: 500;
   }
 
+  /* Responsive: Tablet */
+  @media (max-width: 768px) {
+    header { padding: 24px 16px 18px; }
+    h1 { font-size: 22px; }
+    .subtitle { font-size: 12px; }
+    main { padding: 0 12px 32px; }
+    .card { padding: 16px; }
+    .card-form { padding: 18px; }
+
+    .result-header { flex-direction: column; align-items: flex-start; }
+    .result-actions { flex-wrap: wrap; width: 100%; }
+    .result-actions button { flex: 1; min-width: 0; padding: 8px 10px; font-size: 12px; }
+
+    .select-row { flex-direction: column; gap: 0; }
+
+    th.col-level { min-width: 130px; }
+  }
+
+  /* Responsive: Phone */
+  @media (max-width: 480px) {
+    header { padding: 18px 12px 14px; }
+    h1 { font-size: 19px; letter-spacing: 0.02em; }
+    .subtitle { font-size: 11px; letter-spacing: 0.08em; }
+    main { padding: 0 8px 24px; }
+    .card { padding: 14px; border-radius: 10px; }
+    .card-form { padding: 14px; }
+
+    .label { font-size: 11px; }
+    .text-input { font-size: 13px; padding: 9px 12px; }
+    .text-input-lg { font-size: 14px; padding: 10px 12px; }
+    .hint { font-size: 10px; }
+
+    .input-row { flex-wrap: wrap; }
+    .input-row .text-input { width: 100%; flex: 1 1 100%; }
+    .input-row .btn-secondary,
+    .input-row .btn-delete { flex: 1; text-align: center; }
+
+    .levels-row { flex-wrap: wrap; gap: 6px; }
+    .level-btn { flex: 0 0 calc(33.33% - 4px); padding: 8px 0; font-size: 14px; }
+
+    .btn-generate { font-size: 14px; padding: 12px; }
+
+    .result-title { font-size: 17px; }
+    .result-actions { gap: 6px; }
+    .result-actions button { font-size: 11px; padding: 7px 8px; }
+
+    /* Card-style table for narrow screens */
+    .table-wrap { border-radius: 10px; -webkit-overflow-scrolling: touch; }
+    table { font-size: 12px; }
+    th.col-criterion { min-width: 80px; padding: 10px 10px; font-size: 11px; }
+    th.col-level { min-width: 120px; padding: 10px 10px; font-size: 11px; }
+    .level-score { font-size: 15px; }
+    td.row-criterion { padding: 10px 10px; font-size: 12px; }
+    td.row-desc { padding: 10px; font-size: 11.5px; }
+
+    .history-item { padding: 8px 10px; }
+    .history-item-title { font-size: 12px; }
+    .history-item-meta { font-size: 10px; }
+
+    .guide-content { padding: 12px; font-size: 12px; }
+    .guide-content li { margin-bottom: 6px; }
+  }
+
   .mb-20 { margin-bottom: 20px; }
   .mb-24 { margin-bottom: 24px; }
   .hidden { display: none; }
