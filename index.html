@@ -475,7 +475,7 @@
       <div class="result-actions">
         <button class="btn-new" onclick="backToForm()">新規作成</button>
         <button class="btn-regen" onclick="regenerate()">再生成</button>
-        <button class="btn-csv" onclick="exportCSV()">CSV出力</button>
+        <button class="btn-csv" onclick="exportCSV()">Teams CSV</button>
         <button class="btn-csv" onclick="exportExcel()" style="background:linear-gradient(135deg,#1a7a3a,#27ae60)">Excel出力</button>
         <button class="btn-print" onclick="window.print()">印刷</button>
       </div>
@@ -822,22 +822,39 @@ function backToForm() {
 
 function exportCSV() {
   if (!rubricData) return;
+  const q = s => '"' + String(s).replace(/"/g, '""') + '"';
   const sorted = [...rubricData.levels].sort((a, b) => b.score - a.score);
-  const header = ['評価観点', ...sorted.map(l => `${l.label}(${l.score})`)];
-  const rows = rubricData.rows.map(row => {
-    const descs = sorted.map(level => {
+  const title = rubricData.title || '';
+  const desc = (subjectInput.value || '').trim();
+  const lines = [];
+  // Line 1: Teams identification message
+  lines.push(q('編集機能を最適化するため、この .csv を Microsoft Teams のルーブリックとしてアップロードします。'));
+  // Line 2: Title, Description
+  lines.push(q(title) + ',' + q(''));
+  // Line 3: Detailed description
+  lines.push(q(desc));
+  // Line 4: Empty
+  lines.push(q(''));
+  // Line 5: Empty cell + level labels (no scores)
+  lines.push(',' + sorted.map(l => q(l.label)).join(','));
+  // Line 6+: Criterion rows
+  rubricData.rows.forEach(row => {
+    const cells = sorted.map(level => {
       const d = row.descriptions.find(dd => dd.score === level.score);
-      return '"' + (d?.text || '').replace(/"/g, '""') + '"';
+      return q(d?.text || '');
     });
-    return ['"' + row.criterion + '"', ...descs];
+    lines.push(q(row.criterion) + ',' + cells.join(','));
   });
+  // Last line: version marker
+  lines.push('v.11');
+
   const bom = '\uFEFF';
-  const csv = bom + [header.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const csv = bom + lines.join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = (rubricData.title || 'rubric') + '.csv';
+  a.download = (title || 'rubric') + '.csv';
   a.click();
   URL.revokeObjectURL(url);
 }
