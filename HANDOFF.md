@@ -21,14 +21,19 @@ Gemini APIを使い、評価対象・評価観点・段階数を入力するとA
 - APIキーの入力・localStorage保存・表示/非表示切り替え
 - APIキー削除ボタン（2段階確認: 「キー削除」→「本当に削除」）
 - 生成結果のテーブル表示（スコア順ソート、色分け）
-- CSV出力（BOM付きUTF-8、Excel対応）
+- Teams CSV出力（Teamsの「点数あり」エクスポート形式 v.11p を再現。BOMなしUTF-8・LF改行）
+  - 形式: 識別メッセージ / 空行 / `"タイトル","100"` / `"説明"` / `""` / `,"段階名","点数",...` / 観点行 `"観点","記述",,"記述",,...,` の直後に重み行 `"33.33"` / 最後に `v.11p`
+  - 重みは合計100になるよう均等配分（端数は後ろの観点に0.01ずつ）
+  - Teams実機から出力したCSVとバイト単位で一致することを確認済み
+- AI出力の正規化（scoreが文字列・重複・記述欠落などを吸収）
+- タイトル・段階名・セルの編集（編集内容は履歴にも保存）
 - 新規作成ボタン（結果画面→入力画面に戻る）
 - ダークテーマUI、フェードインアニメーション
 
 ## Gemini APIの呼び出し仕様
 
 - エンドポイント: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`
-- APIキーはクエリパラメータで渡す
+- APIキーは `x-goog-api-key` ヘッダーで渡す（URLに残さない）
 - system_instructionに教育工学専門家としてのプロンプトを設定
 - `responseMimeType: 'application/json'` でJSON出力を強制
 - temperature: 0.3（安定した出力のため低め）
